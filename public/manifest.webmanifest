@@ -1,0 +1,11 @@
+{
+  "name": "Lumen — Finanzas personales",
+  "short_name": "Lumen",
+  "description": "Tu control sencillo y preciso del dinero.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f7f3",
+  "theme_color": "#10241e",
+  "lang": "es",
+  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}
