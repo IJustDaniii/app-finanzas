@@ -1,22 +1,44 @@
 {
-  "name": "app-finanzas",
+  "name": "bolsillo",
+  "productName": "Bolsillo",
+  "description": "Tus finanzas personales, claras y a mano.",
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "main": "desktop/main.cjs",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "desktop": "npm run build && electron .",
+    "installer": "npm run build && electron-builder --win nsis"
+  },
+  "build": {
+    "appId": "es.bolsillo.finanzas",
+    "productName": "Bolsillo",
+    "directories": { "output": "release" },
+    "files": ["dist/**/*", "desktop/main.cjs", "desktop/icon.ico", "package.json"],
+    "win": { "target": "nsis", "icon": "desktop/icon.ico", "executableName": "Bolsillo" },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Bolsillo",
+      "artifactName": "Bolsillo-Instalador-${version}.${ext}"
+    }
   },
   "dependencies": {
-    "@vitejs/plugin-react": "latest",
-    "vite": "latest",
-    "typescript": "latest",
     "react": "latest",
     "react-dom": "latest"
   },
   "devDependencies": {
     "@types/react": "latest",
-    "@types/react-dom": "latest"
+    "@types/react-dom": "latest",
+    "@vitejs/plugin-react": "latest",
+    "electron": "^44.4.4",
+    "electron-builder": "^26.15.3",
+    "typescript": "latest",
+    "vite": "latest"
   }
 }

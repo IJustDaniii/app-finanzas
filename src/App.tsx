@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { ChangeEvent, FormEvent, ReactNode } from 'react'
 import type { Category, FinanceState, Movement, MovementType, Purchase, Subscription, SubscriptionFrequency } from './types'
 import {
+  STORAGE_KEY,
   addBillingPeriod,
   currentMonthPrefix,
   exportState,
@@ -71,7 +72,7 @@ function App() {
 
   const resetData = () => {
     if (!window.confirm('¿Seguro que quieres borrar todos tus datos? Esta acción no se puede deshacer.')) return
-    localStorage.removeItem('lumen-finanzas-state-v1')
+    localStorage.removeItem(STORAGE_KEY)
     setState(loadState())
     setToast('Datos borrados')
   }
@@ -101,8 +102,8 @@ function App() {
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand-lockup">
-          <div className="brand-mark"><span /></div>
-          <div><strong>Lumen</strong><span>Finanzas personales</span></div>
+          <img className="brand-mark" src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" />
+          <div><strong>Bolsillo</strong><span>Tu dinero, a mano</span></div>
         </div>
         <div className="sidebar-section-label">Tu espacio</div>
         <nav className="side-nav" aria-label="Navegación principal">
@@ -115,7 +116,7 @@ function App() {
 
       <main className="main-content">
         <header className="topbar">
-          <div className="mobile-brand"><div className="brand-mark"><span /></div><strong>Lumen</strong></div>
+          <div className="mobile-brand"><img className="brand-mark" src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" /><strong>Bolsillo</strong></div>
           <div className="breadcrumb"><span>Tu espacio</span><span className="breadcrumb-separator">/</span><strong>{navItems.find((item) => item.id === view)?.label ?? 'Ajustes'}</strong></div>
           <div className="topbar-actions">
             <span className="today-label">{new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())}</span>
@@ -305,7 +306,7 @@ function SubscriptionsView({ state, onAdd, onEdit, onUpdate, onDelete }: { state
 }
 
 function SettingsView({ state, onBalance, onCategory, onRestore, onExport, onReset }: { state: FinanceState; onBalance: () => void; onCategory: () => void; onRestore: (event: ChangeEvent<HTMLInputElement>) => void; onExport: () => void; onReset: () => void }) {
-  return <><PageTitle eyebrow="Preferencias" title="Ajustes" description="Configura tu espacio y mantén tus datos bajo control." /><div className="settings-layout"><div className="settings-main"><section className="card settings-section"><div className="settings-section-title"><div className="settings-icon">€</div><div><h2>Saldo inicial</h2><p>El punto de partida de todos tus cálculos.</p></div><button className="outline-button" onClick={onBalance}>Corregir saldo</button></div><div className="setting-value"><strong>{formatMoney(state.initialBalanceCents, state.currency)}</strong><span>Saldo inicial configurado</span></div></section><section className="card settings-section"><div className="settings-section-title"><div className="settings-icon">●</div><div><h2>Categorías</h2><p>Personaliza cómo organizas tus movimientos.</p></div><button className="outline-button" onClick={onCategory}>＋ Añadir</button></div><div className="settings-category-list">{state.categories.map((category) => <div key={category.id}><span className="legend-dot" style={{ background: category.color }} />{category.name}<span className="category-count">{state.movements.filter((movement) => movement.categoryId === category.id).length}</span></div>)}</div></section><section className="card settings-section"><div className="settings-section-title"><div className="settings-icon">⇄</div><div><h2>Copias de seguridad</h2><p>Exporta o recupera todos tus datos en formato JSON.</p></div></div><div className="backup-actions"><button className="outline-button" onClick={onExport}>↓ Exportar datos</button><label className="outline-button file-button">↑ Restaurar copia<input type="file" accept="application/json,.json" onChange={onRestore} /></label></div></section></div><aside className="settings-aside"><div className="card privacy-card"><span className="privacy-large-icon">◉</span><h3>Tu dinero, tus datos</h3><p>Lumen guarda todo en este dispositivo. No hay conexión bancaria ni datos que salgan de aquí.</p><span className="secure-label">✓ Almacenamiento local privado</span></div><div className="card danger-card"><h3>Zona de datos</h3><p>Eliminar toda la información guardada en este dispositivo.</p><button className="danger-button" onClick={onReset}>Borrar todos los datos</button></div></aside></div></>
+  return <><PageTitle eyebrow="Preferencias" title="Ajustes" description="Configura tu espacio y mantén tus datos bajo control." /><div className="settings-layout"><div className="settings-main"><section className="card settings-section"><div className="settings-section-title"><div className="settings-icon">€</div><div><h2>Saldo inicial</h2><p>El punto de partida de todos tus cálculos.</p></div><button className="outline-button" onClick={onBalance}>Corregir saldo</button></div><div className="setting-value"><strong>{formatMoney(state.initialBalanceCents, state.currency)}</strong><span>Saldo inicial configurado</span></div></section><section className="card settings-section"><div className="settings-section-title"><div className="settings-icon">●</div><div><h2>Categorías</h2><p>Personaliza cómo organizas tus movimientos.</p></div><button className="outline-button" onClick={onCategory}>＋ Añadir</button></div><div className="settings-category-list">{state.categories.map((category) => <div key={category.id}><span className="legend-dot" style={{ background: category.color }} />{category.name}<span className="category-count">{state.movements.filter((movement) => movement.categoryId === category.id).length}</span></div>)}</div></section><section className="card settings-section"><div className="settings-section-title"><div className="settings-icon">⇄</div><div><h2>Copias de seguridad</h2><p>Exporta o recupera todos tus datos en formato JSON.</p></div></div><div className="backup-actions"><button className="outline-button" onClick={onExport}>↓ Exportar datos</button><label className="outline-button file-button">↑ Restaurar copia<input type="file" accept="application/json,.json" onChange={onRestore} /></label></div></section></div><aside className="settings-aside"><div className="card privacy-card"><span className="privacy-large-icon">◉</span><h3>Tu dinero, tus datos</h3><p>Bolsillo guarda todo en este dispositivo. No hay conexión bancaria ni datos que salgan de aquí.</p><span className="secure-label">✓ Almacenamiento local privado</span></div><div className="card danger-card"><h3>Zona de datos</h3><p>Eliminar toda la información guardada en este dispositivo.</p><button className="danger-button" onClick={onReset}>Borrar todos los datos</button></div></aside></div></>
 }
 
 function SubscriptionCard({ subscription, category, currency, onEdit, onToggle, onCancel }: { subscription: Subscription; category: Category; currency: string; onEdit: () => void; onToggle: () => void; onCancel: () => void }) {
@@ -347,7 +348,7 @@ type PurchaseDraft = { product: string; establishment: string; price: string; da
 type SubscriptionDraft = { name: string; amount: string; startDate: string; nextBillingDate: string; frequency: SubscriptionFrequency; categoryId: string; status: 'active' | 'paused' | 'cancelled' }
 
 function ModalShell({ title, description, onClose, children, wide = false }: { title: string; description?: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
-  return <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}><div className={`modal ${wide ? 'modal-wide' : ''}`} role="dialog" aria-modal="true"><button className="modal-close" onClick={onClose} aria-label="Cerrar">×</button><div className="modal-heading"><div className="eyebrow">Lumen</div><h2>{title}</h2>{description && <p>{description}</p>}</div>{children}</div></div>
+  return <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}><div className={`modal ${wide ? 'modal-wide' : ''}`} role="dialog" aria-modal="true"><button className="modal-close" onClick={onClose} aria-label="Cerrar">×</button><div className="modal-heading"><div className="eyebrow">Bolsillo</div><h2>{title}</h2>{description && <p>{description}</p>}</div>{children}</div></div>
 }
 
 function MovementModal({ state, item, onClose, onSave }: { state: FinanceState; item?: Movement; onClose: () => void; onSave: (data: MovementDraft, id?: string) => void }) {
@@ -362,7 +363,7 @@ function PurchaseModal({ state, item, onClose, onSave }: { state: FinanceState; 
 
 function SubscriptionModal({ state, item, onClose, onSave }: { state: FinanceState; item?: Subscription; onClose: () => void; onSave: (data: SubscriptionDraft, id?: string) => void }) {
   const [form, setForm] = useState<SubscriptionDraft>({ name: item?.name ?? '', amount: item ? (item.amountCents / 100).toFixed(2).replace('.', ',') : '', startDate: item?.startDate ?? todayISO(), nextBillingDate: item?.nextBillingDate ?? addBillingPeriod(todayISO(), 'monthly'), frequency: item?.frequency ?? 'monthly', categoryId: item?.categoryId ?? 'other', status: item?.status ?? 'active' })
-  return <ModalShell title={item ? 'Editar suscripción' : 'Nueva suscripción'} description="Los cobros vencidos se registrarán al abrir Lumen." onClose={onClose}><form className="modal-form" onSubmit={(event) => { event.preventDefault(); onSave(form, item?.id) }}><label>Nombre del servicio<input autoFocus value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Ej. Spotify" /></label><div className="form-two"><label>Importe<input value={form.amount} onChange={(event) => setForm({ ...form, amount: event.target.value })} placeholder="0,00" inputMode="decimal" /></label><label>Frecuencia<select value={form.frequency} onChange={(event) => setForm({ ...form, frequency: event.target.value as SubscriptionFrequency })}><option value="monthly">Mensual</option><option value="yearly">Anual</option></select></label></div><div className="form-two"><label>Fecha de inicio<input type="date" value={form.startDate} onChange={(event) => setForm({ ...form, startDate: event.target.value })} /></label><label>Próximo cobro<input type="date" value={form.nextBillingDate} onChange={(event) => setForm({ ...form, nextBillingDate: event.target.value })} /></label></div><label>Categoría<select value={form.categoryId} onChange={(event) => setForm({ ...form, categoryId: event.target.value })}>{state.categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>{item && <label>Estado<select value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value as SubscriptionDraft['status'] })}><option value="active">Activa</option><option value="paused">Pausada</option><option value="cancelled">Cancelada</option></select></label>}<div className="modal-actions"><button type="button" className="text-button" onClick={onClose}>Cancelar</button><button className="primary-button" type="submit">{item ? 'Guardar cambios' : 'Añadir suscripción'}</button></div></form></ModalShell>
+  return <ModalShell title={item ? 'Editar suscripción' : 'Nueva suscripción'} description="Los cobros vencidos se registrarán al abrir Bolsillo." onClose={onClose}><form className="modal-form" onSubmit={(event) => { event.preventDefault(); onSave(form, item?.id) }}><label>Nombre del servicio<input autoFocus value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Ej. Spotify" /></label><div className="form-two"><label>Importe<input value={form.amount} onChange={(event) => setForm({ ...form, amount: event.target.value })} placeholder="0,00" inputMode="decimal" /></label><label>Frecuencia<select value={form.frequency} onChange={(event) => setForm({ ...form, frequency: event.target.value as SubscriptionFrequency })}><option value="monthly">Mensual</option><option value="yearly">Anual</option></select></label></div><div className="form-two"><label>Fecha de inicio<input type="date" value={form.startDate} onChange={(event) => setForm({ ...form, startDate: event.target.value })} /></label><label>Próximo cobro<input type="date" value={form.nextBillingDate} onChange={(event) => setForm({ ...form, nextBillingDate: event.target.value })} /></label></div><label>Categoría<select value={form.categoryId} onChange={(event) => setForm({ ...form, categoryId: event.target.value })}>{state.categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>{item && <label>Estado<select value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value as SubscriptionDraft['status'] })}><option value="active">Activa</option><option value="paused">Pausada</option><option value="cancelled">Cancelada</option></select></label>}<div className="modal-actions"><button type="button" className="text-button" onClick={onClose}>Cancelar</button><button className="primary-button" type="submit">{item ? 'Guardar cambios' : 'Añadir suscripción'}</button></div></form></ModalShell>
 }
 
 function BalanceModal({ current, hasHistory, onClose, onSave }: { current: number; hasHistory: boolean; onClose: () => void; onSave: (amountCents: number) => void }) {
@@ -378,7 +379,7 @@ function CategoryModal({ categories, onClose, onSave }: { categories: Category[]
 }
 
 function BackupModal({ onClose, onRestore, onExport }: { onClose: () => void; onRestore: (event: ChangeEvent<HTMLInputElement>) => void; onExport: () => void }) {
-  return <ModalShell title="Copia de seguridad" description="Exporta tus datos o restaura una copia anterior." onClose={onClose}><div className="backup-modal-content"><button className="backup-option" onClick={onExport}><span>↓</span><div><strong>Exportar datos</strong><small>Descarga un archivo JSON con toda tu información.</small></div></button><label className="backup-option"><span>↑</span><div><strong>Restaurar copia</strong><small>Selecciona un archivo JSON exportado desde Lumen.</small></div><input type="file" accept="application/json,.json" onChange={onRestore} /></label></div></ModalShell>
+  return <ModalShell title="Copia de seguridad" description="Exporta tus datos o restaura una copia anterior." onClose={onClose}><div className="backup-modal-content"><button className="backup-option" onClick={onExport}><span>↓</span><div><strong>Exportar datos</strong><small>Descarga un archivo JSON con toda tu información.</small></div></button><label className="backup-option"><span>↑</span><div><strong>Restaurar copia</strong><small>Selecciona un archivo JSON exportado desde Bolsillo.</small></div><input type="file" accept="application/json,.json" onChange={onRestore} /></label></div></ModalShell>
 }
 
 type UpcomingPayment = { key: string; name: string; amountCents: number; date: string; categoryId: string }
@@ -413,7 +414,7 @@ function downloadBackup(state: FinanceState) {
   const url = URL.createObjectURL(blob)
   const anchor = document.createElement('a')
   anchor.href = url
-  anchor.download = `lumen-copia-${todayISO()}.json`
+  anchor.download = `bolsillo-copia-${todayISO()}.json`
   anchor.click()
   URL.revokeObjectURL(url)
 }
