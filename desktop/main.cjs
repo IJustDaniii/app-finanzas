@@ -1,5 +1,7 @@
-const { app, BrowserWindow } = require('electron')
+const { app, BrowserWindow, dialog } = require('electron')
+const { autoUpdater } = require('electron-updater')
 const path = require('node:path')
+const { startAutoUpdates } = require('./updater.cjs')
 
 app.setAppUserModelId('es.bolsillo.finanzas')
 
@@ -25,7 +27,11 @@ function createWindow() {
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
   window.webContents.on('will-navigate', (event) => event.preventDefault())
   window.loadFile(path.join(__dirname, '..', 'dist', 'index.html'))
+  return window
 }
 
-app.whenReady().then(createWindow)
+app.whenReady().then(() => {
+  const window = createWindow()
+  startAutoUpdates({ app, autoUpdater, dialog, window })
+})
 app.on('window-all-closed', () => app.quit())

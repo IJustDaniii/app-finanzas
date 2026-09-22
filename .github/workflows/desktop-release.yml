@@ -1,0 +1,56 @@
+name: Bolsillo para Windows
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: npm audit --audit-level=high
+
+  release:
+    if: github.event_name != 'pull_request'
+    needs: verify
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: bolsillo-release
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Asignar una versión nueva
+        shell: pwsh
+        run: |
+          $version = "1.1.${{ github.run_number }}"
+          npm version $version --no-git-tag-version
+          "RELEASE_VERSION=$version" >> $env:GITHUB_ENV
+      - run: npm run installer
+      - name: Publicar la actualización
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $installer = "release/Bolsillo-Instalador-$env:RELEASE_VERSION.exe"
+          gh release create "v$env:RELEASE_VERSION" $installer "$installer.blockmap" "release/latest.yml" --target $env:GITHUB_SHA --generate-notes --latest
