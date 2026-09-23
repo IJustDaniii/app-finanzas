@@ -4,23 +4,23 @@ Una cartera sencilla para controlar saldo, ingresos, gastos, compras y suscripci
 
 ## Instalar en Windows
 
-Ejecuta `release/Bolsillo-Instalador-1.1.0.exe` y sigue el asistente. Puedes elegir la carpeta de instalación. Se crean accesos directos en el escritorio y en el menú Inicio. La aplicación funciona sin tener que instalar Node.js.
+Descarga el instalador más reciente desde [Versiones de Bolsillo](https://github.com/IJustDaniii/app-finanzas/releases/latest) y sigue el asistente. Puedes elegir la carpeta de instalación. Se crean accesos directos en el escritorio y en el menú Inicio. La aplicación funciona sin instalar Node.js.
 
-El instalador generado aquí no está firmado digitalmente. Windows puede mostrar una advertencia al abrirlo.
+El instalador no está firmado digitalmente. Windows puede mostrar una advertencia al abrirlo.
 
 ## Actualizaciones automáticas
 
-La versión 1.1.0 consulta las [publicaciones de GitHub](https://github.com/IJustDaniii/app-finanzas/releases) al abrirse y cada cuatro horas. Si encuentra una versión nueva, la descarga y ofrece **Reiniciar e instalar** o **Más tarde**. La instalación se hace al elegir reiniciar; los datos de la app permanecen en el perfil local de Windows.
+Bolsillo consulta las versiones publicadas en GitHub al abrirse y cada cuatro horas. Si encuentra una versión nueva, la descarga y ofrece **Reiniciar e instalar** o **Más tarde**. Los datos permanecen en el almacenamiento local durante la actualización.
 
-Cada cambio integrado en `main` activa `.github/workflows/desktop-release.yml`: comprueba el proyecto, crea una versión superior y publica el instalador, su `latest.yml` y el archivo de actualización diferencial. Los cambios que solo estén en una rama local no se distribuyen hasta integrarlos en `main`.
+Cada cambio integrado en `main` activa `.github/workflows/desktop-release.yml`: comprueba el proyecto, crea una versión superior y publica el instalador con los archivos necesarios para la actualización automática. Los cambios que solo estén en una rama local no se distribuyen.
 
-Quien todavía tenga la versión 1.0.0 debe instalar manualmente la 1.1.0 una vez para activar este sistema. Las versiones posteriores se recibirán desde la aplicación.
+Quien todavía tenga la versión 1.0.0 debe instalar manualmente una versión posterior para activar este sistema.
 
-## Pasar tus datos desde la versión web
+## Pasar tus datos a otro dispositivo
 
-La aplicación de escritorio tiene su propio almacenamiento local. En la versión web, abre **Ajustes → Copias de seguridad → Exportar datos**. Después abre Bolsillo de escritorio y usa **Ajustes → Copias de seguridad → Restaurar copia** para importar el JSON. El cambio de nombre no altera el formato de las copias.
+En el equipo de origen, abre **Ajustes → Lleva tus datos contigo → Descargar mis datos**. Lleva el archivo JSON al otro equipo, abre Bolsillo y elige **Ajustes → Lleva tus datos contigo → Elegir archivo para importar**. Revisa el resumen y confirma **Importar y sustituir**. Esta acción reemplaza los datos del segundo equipo; desde esa misma pantalla puedes descargar antes una copia de sus datos actuales.
 
-Los datos no se envían a ningún servicio. Exporta una copia antes de desinstalar o cambiar de equipo.
+La copia incluye saldo inicial, movimientos, compras, suscripciones y categorías. Funciona entre la versión web y la de escritorio. El archivo no se sube a ningún servidor, por lo que debes guardarlo en un lugar seguro. Este proceso es manual: los cambios posteriores en un equipo no se sincronizan con el otro.
 
 ## Desarrollo
 
@@ -31,4 +31,4 @@ npm run desktop    # ventana de escritorio
 npm run installer  # instalador de Windows en release/
 ```
 
-La app usa React, TypeScript, Vite y Electron. Los importes se guardan en céntimos enteros y los datos se conservan en el almacenamiento local de cada instalación. La app permite exportar y restaurar copias JSON.
+La app usa React, TypeScript, Vite y Electron. Los importes se guardan en céntimos enteros y los datos se conservan en el almacenamiento local de cada instalación.

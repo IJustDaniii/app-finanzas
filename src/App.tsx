@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ChangeEvent, FormEvent, ReactNode } from 'react'
 import type { Category, FinanceState, Movement, MovementType, Purchase, Subscription, SubscriptionFrequency } from './types'
+import { parseFinanceBackup } from './backup'
+import SettingsView from './SettingsView'
 import {
   STORAGE_KEY,
   addBillingPeriod,
@@ -25,7 +27,7 @@ import {
 } from './utils'
 
 type View = 'dashboard' | 'movements' | 'purchases' | 'subscriptions' | 'settings'
-type Modal = { type: 'movement' | 'purchase' | 'subscription' | 'balance' | 'category' | 'backup'; item?: Movement | Purchase | Subscription } | null
+type Modal = { type: 'movement' | 'purchase' | 'subscription' | 'balance' | 'category'; item?: Movement | Purchase | Subscription } | null
 
 const navItems: Array<{ id: View; label: string; icon: string }> = [
   { id: 'dashboard', label: 'Resumen', icon: '⌂' },
@@ -41,6 +43,7 @@ function App() {
   const [toast, setToast] = useState<string | null>(null)
   const [searchParams, setSearchParams] = useState({ query: '', type: 'all' as 'all' | MovementType, category: 'all' })
   const [processedOnLoad, setProcessedOnLoad] = useState(0)
+  const [pendingBackup, setPendingBackup] = useState<{ fileName: string; state: FinanceState } | null>(null)
 
   useEffect(() => {
     const result = processDueSubscriptions(state)
@@ -77,23 +80,26 @@ function App() {
     setToast('Datos borrados')
   }
 
-  const handleRestore = (event: ChangeEvent<HTMLInputElement>) => {
+  const handleRestore = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onload = () => {
-      try {
-        const parsed = JSON.parse(String(reader.result)) as FinanceState
-        if (!parsed || parsed.version !== 1 || !Array.isArray(parsed.movements) || !Array.isArray(parsed.subscriptions)) throw new Error('Formato no válido')
-        const restored = { ...parsed, categories: parsed.categories?.length ? parsed.categories : state.categories, updatedAt: new Date().toISOString() }
-        setState(processDueSubscriptions(restored).state)
-        setToast('Copia restaurada correctamente')
-      } catch {
-        setToast('No se pudo restaurar esta copia')
-      }
-    }
-    reader.readAsText(file)
     event.target.value = ''
+    if (!file) return
+    if (file.size > 20_000_000) {
+      setToast('La copia supera el límite de 20 MB')
+      return
+    }
+    try {
+      setPendingBackup({ fileName: file.name, state: parseFinanceBackup(await file.text()) })
+    } catch {
+      setToast('No se pudo importar: el archivo no es una copia válida de Bolsillo')
+    }
+  }
+
+  const confirmRestore = () => {
+    if (!pendingBackup) return
+    setState(processDueSubscriptions({ ...pendingBackup.state, updatedAt: new Date().toISOString() }).state)
+    setPendingBackup(null)
+    setToast('Datos importados correctamente')
   }
 
   const closeModal = () => setModal(null)
@@ -126,13 +132,13 @@ function App() {
 
         {processedOnLoad > 0 && <div className="notice-bar"><span className="notice-icon">↻</span><span>Hemos registrado {processedOnLoad} {processedOnLoad === 1 ? 'cobro pendiente' : 'cobros pendientes'} de tus suscripciones.</span><button onClick={() => setProcessedOnLoad(0)}>×</button></div>}
 
-        <div className="page-content">
+        <div className="page-content"><div className="view-content" key={view}>
           {view === 'dashboard' && <Dashboard state={state} onNavigate={setView} onAdd={() => setModal({ type: 'movement' })} />}
           {view === 'movements' && <MovementsView state={state} searchParams={searchParams} setSearchParams={setSearchParams} onAdd={() => setModal({ type: 'movement' })} onEdit={(item) => setModal({ type: 'movement', item })} onDelete={(item) => deleteMovement(item)} onConfirm={(item) => confirmMovement(item)} />}
           {view === 'purchases' && <PurchasesView state={state} onAdd={() => setModal({ type: 'purchase' })} onEdit={(item) => setModal({ type: 'purchase', item })} onDelete={(item) => deletePurchase(item)} />}
           {view === 'subscriptions' && <SubscriptionsView state={state} onAdd={() => setModal({ type: 'subscription' })} onEdit={(item) => setModal({ type: 'subscription', item })} onUpdate={(id, patch) => updateSubscription(id, patch)} onDelete={(item) => deleteSubscription(item)} />}
           {view === 'settings' && <SettingsView state={state} onBalance={() => setModal({ type: 'balance' })} onCategory={() => setModal({ type: 'category' })} onRestore={handleRestore} onExport={() => downloadBackup(state)} onReset={resetData} />}
-        </div>
+        </div></div>
 
         <nav className="mobile-nav" aria-label="Navegación móvil">
           {navItems.map((item) => <NavButton key={item.id} item={item} active={view === item.id} onClick={() => setView(item.id)} />)}
@@ -145,7 +151,7 @@ function App() {
       {modal?.type === 'subscription' && <SubscriptionModal state={state} item={modal.item as Subscription | undefined} onClose={closeModal} onSave={(data, id) => saveSubscription(data, id)} />}
       {modal?.type === 'balance' && <BalanceModal current={getBalance(state)} hasHistory={state.movements.length > 0} onClose={closeModal} onSave={saveBalance} />}
       {modal?.type === 'category' && <CategoryModal categories={state.categories} onClose={closeModal} onSave={addCategory} />}
-      {modal?.type === 'backup' && <BackupModal onClose={closeModal} onRestore={handleRestore} onExport={() => downloadBackup(state)} />}
+      {pendingBackup && <RestorePreviewModal backup={pendingBackup} onClose={() => setPendingBackup(null)} onConfirm={confirmRestore} onExportCurrent={() => downloadBackup(state)} />}
       {toast && <div className="toast" role="status"><span>✓</span>{toast}</div>}
     </div>
   )
@@ -305,10 +311,6 @@ function SubscriptionsView({ state, onAdd, onEdit, onUpdate, onDelete }: { state
   return <><PageTitle eyebrow="Pagos recurrentes" title="Suscripciones" description="Anticípate a tus renovaciones y conoce el coste real de tus servicios." action={<button className="primary-button" onClick={onAdd}><span>＋</span> Añadir suscripción</button>} /><div className="subscription-totals"><div className="card subscription-total-card"><span>Coste mensual equivalente</span><strong>{formatMoney(monthly, state.currency)}</strong><small>de {active.length} activas</small></div><div className="card subscription-total-card"><span>Coste anual</span><strong>{formatMoney(annual, state.currency)}</strong><small>proyección de 12 meses</small></div><div className="card subscription-total-card accent"><span>Próxima renovación</span><strong>{active.length ? formatShortDate(active.sort((a, b) => a.nextBillingDate.localeCompare(b.nextBillingDate))[0].nextBillingDate) : '—'}</strong><small>{active.length ? active.sort((a, b) => a.nextBillingDate.localeCompare(b.nextBillingDate))[0].name : 'Sin pagos pendientes'}</small></div></div><div className="subscription-list">{state.subscriptions.length ? state.subscriptions.map((subscription) => <SubscriptionCard key={subscription.id} subscription={subscription} category={getCategory(state.categories, subscription.categoryId)} currency={state.currency} onEdit={() => onEdit(subscription)} onToggle={() => onUpdate(subscription.id, { status: subscription.status === 'active' ? 'paused' : 'active' })} onCancel={() => onDelete(subscription)} />) : <div className="card"><EmptyState title="No tienes suscripciones" description="Añade servicios como Netflix, gimnasio o cualquier pago recurrente." action={onAdd} actionLabel="Añadir suscripción" /></div>}</div></>
 }
 
-function SettingsView({ state, onBalance, onCategory, onRestore, onExport, onReset }: { state: FinanceState; onBalance: () => void; onCategory: () => void; onRestore: (event: ChangeEvent<HTMLInputElement>) => void; onExport: () => void; onReset: () => void }) {
-  return <><PageTitle eyebrow="Preferencias" title="Ajustes" description="Configura tu espacio y mantén tus datos bajo control." /><div className="settings-layout"><div className="settings-main"><section className="card settings-section"><div className="settings-section-title"><div className="settings-icon">€</div><div><h2>Saldo inicial</h2><p>El punto de partida de todos tus cálculos.</p></div><button className="outline-button" onClick={onBalance}>Corregir saldo</button></div><div className="setting-value"><strong>{formatMoney(state.initialBalanceCents, state.currency)}</strong><span>Saldo inicial configurado</span></div></section><section className="card settings-section"><div className="settings-section-title"><div className="settings-icon">●</div><div><h2>Categorías</h2><p>Personaliza cómo organizas tus movimientos.</p></div><button className="outline-button" onClick={onCategory}>＋ Añadir</button></div><div className="settings-category-list">{state.categories.map((category) => <div key={category.id}><span className="legend-dot" style={{ background: category.color }} />{category.name}<span className="category-count">{state.movements.filter((movement) => movement.categoryId === category.id).length}</span></div>)}</div></section><section className="card settings-section"><div className="settings-section-title"><div className="settings-icon">⇄</div><div><h2>Copias de seguridad</h2><p>Exporta o recupera todos tus datos en formato JSON.</p></div></div><div className="backup-actions"><button className="outline-button" onClick={onExport}>↓ Exportar datos</button><label className="outline-button file-button">↑ Restaurar copia<input type="file" accept="application/json,.json" onChange={onRestore} /></label></div></section></div><aside className="settings-aside"><div className="card privacy-card"><span className="privacy-large-icon">◉</span><h3>Tu dinero, tus datos</h3><p>Bolsillo guarda todo en este dispositivo. No hay conexión bancaria ni datos que salgan de aquí.</p><span className="secure-label">✓ Almacenamiento local privado</span></div><div className="card danger-card"><h3>Zona de datos</h3><p>Eliminar toda la información guardada en este dispositivo.</p><button className="danger-button" onClick={onReset}>Borrar todos los datos</button></div></aside></div></>
-}
-
 function SubscriptionCard({ subscription, category, currency, onEdit, onToggle, onCancel }: { subscription: Subscription; category: Category; currency: string; onEdit: () => void; onToggle: () => void; onCancel: () => void }) {
   const cancelled = subscription.status === 'cancelled'
   return <div className={`card subscription-card ${cancelled ? 'cancelled' : ''}`}><div className="subscription-brand" style={{ background: `${category.color}22`, color: category.color }}>{category.icon}</div><div className="subscription-content"><div className="subscription-head"><div><h3>{subscription.name}</h3><span className={`subscription-status ${subscription.status}`}>{subscription.status === 'active' ? 'Activa' : subscription.status === 'paused' ? 'Pausada' : 'Cancelada'}</span></div><strong>{formatMoney(subscription.amountCents, currency)}<small> / {subscription.frequency === 'monthly' ? 'mes' : 'año'}</small></strong></div><div className="subscription-meta"><span>Próximo cobro <strong>{cancelled ? '—' : formatShortDate(subscription.nextBillingDate)}</strong></span><span className="dot-separator">·</span><span>{subscription.frequency === 'monthly' ? 'Mensual' : 'Anual'}</span><span className="dot-separator">·</span><span className="category-tag"><i style={{ background: category.color }} />{category.name}</span></div><div className="subscription-actions"><button onClick={onEdit}>Editar</button>{!cancelled && <button onClick={onToggle}>{subscription.status === 'active' ? 'Pausar' : 'Reactivar'}</button>}{!cancelled && <button className="muted-action" onClick={onCancel}>Cancelar</button>}</div></div></div>
@@ -348,7 +350,28 @@ type PurchaseDraft = { product: string; establishment: string; price: string; da
 type SubscriptionDraft = { name: string; amount: string; startDate: string; nextBillingDate: string; frequency: SubscriptionFrequency; categoryId: string; status: 'active' | 'paused' | 'cancelled' }
 
 function ModalShell({ title, description, onClose, children, wide = false }: { title: string; description?: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
-  return <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}><div className={`modal ${wide ? 'modal-wide' : ''}`} role="dialog" aria-modal="true"><button className="modal-close" onClick={onClose} aria-label="Cerrar">×</button><div className="modal-heading"><div className="eyebrow">Bolsillo</div><h2>{title}</h2>{description && <p>{description}</p>}</div>{children}</div></div>
+  return <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}><div className={`modal ${wide ? 'modal-wide' : ''}`} role="dialog" aria-modal="true" aria-label={title}><button className="modal-close" onClick={onClose} aria-label="Cerrar">×</button><div className="modal-heading"><div className="eyebrow">Bolsillo</div><h2>{title}</h2>{description && <p>{description}</p>}</div>{children}</div></div>
+}
+
+function RestorePreviewModal({ backup, onClose, onConfirm, onExportCurrent }: { backup: { fileName: string; state: FinanceState }; onClose: () => void; onConfirm: () => void; onExportCurrent: () => void }) {
+  const { state } = backup
+  return <ModalShell title="Revisar importación" description="Comprueba la copia antes de pasarla a este dispositivo." onClose={onClose} wide>
+    <div className="import-preview">
+      <div className="import-file"><span>⇄</span><div><strong>{backup.fileName}</strong><small>Copia de Bolsillo compatible</small></div></div>
+      <dl className="import-summary">
+        <div><dt>Movimientos</dt><dd>{state.movements.length}</dd></div>
+        <div><dt>Compras</dt><dd>{state.purchases.length}</dd></div>
+        <div><dt>Suscripciones</dt><dd>{state.subscriptions.length}</dd></div>
+        <div><dt>Categorías</dt><dd>{state.categories.length}</dd></div>
+      </dl>
+      <p className="import-warning">Al importar, los datos actuales de este dispositivo se sustituirán por los de la copia. Puedes descargarlos antes.</p>
+      <div className="modal-actions import-actions">
+        <button className="text-button" onClick={onClose} autoFocus>Cancelar</button>
+        <button className="outline-button" onClick={onExportCurrent}>Descargar datos actuales</button>
+        <button className="primary-button" onClick={onConfirm}>Importar y sustituir</button>
+      </div>
+    </div>
+  </ModalShell>
 }
 
 function MovementModal({ state, item, onClose, onSave }: { state: FinanceState; item?: Movement; onClose: () => void; onSave: (data: MovementDraft, id?: string) => void }) {
@@ -376,10 +399,6 @@ function CategoryModal({ categories, onClose, onSave }: { categories: Category[]
   const [name, setName] = useState('')
   const [color, setColor] = useState('#9bd76d')
   return <ModalShell title="Nueva categoría" description={`${categories.length} categorías disponibles`} onClose={onClose}><form className="modal-form" onSubmit={(event) => { event.preventDefault(); onSave({ name, color }) }}><label>Nombre<input autoFocus value={name} onChange={(event) => setName(event.target.value)} placeholder="Ej. Mascotas" /></label><label>Color<input className="color-input" type="color" value={color} onChange={(event) => setColor(event.target.value)} /></label><div className="modal-actions"><button type="button" className="text-button" onClick={onClose}>Cancelar</button><button className="primary-button" type="submit">Crear categoría</button></div></form></ModalShell>
-}
-
-function BackupModal({ onClose, onRestore, onExport }: { onClose: () => void; onRestore: (event: ChangeEvent<HTMLInputElement>) => void; onExport: () => void }) {
-  return <ModalShell title="Copia de seguridad" description="Exporta tus datos o restaura una copia anterior." onClose={onClose}><div className="backup-modal-content"><button className="backup-option" onClick={onExport}><span>↓</span><div><strong>Exportar datos</strong><small>Descarga un archivo JSON con toda tu información.</small></div></button><label className="backup-option"><span>↑</span><div><strong>Restaurar copia</strong><small>Selecciona un archivo JSON exportado desde Bolsillo.</small></div><input type="file" accept="application/json,.json" onChange={onRestore} /></label></div></ModalShell>
 }
 
 type UpcomingPayment = { key: string; name: string; amountCents: number; date: string; categoryId: string }
@@ -415,8 +434,10 @@ function downloadBackup(state: FinanceState) {
   const anchor = document.createElement('a')
   anchor.href = url
   anchor.download = `bolsillo-copia-${todayISO()}.json`
+  document.body.appendChild(anchor)
   anchor.click()
-  URL.revokeObjectURL(url)
+  anchor.remove()
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
 }
 
 export default App

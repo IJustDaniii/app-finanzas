@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "test": "node --test desktop/updater.test.cjs",
+    "test": "node --test desktop/updater.test.cjs src/backup.test.mjs",
     "preview": "vite preview",
     "desktop": "npm run build && electron .",
     "installer": "npm run build && electron-builder --win nsis --publish never"
